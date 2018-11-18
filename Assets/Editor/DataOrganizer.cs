@@ -9,6 +9,8 @@ using UnityScript.Steps;
 public class DataOrganizer : EditorWindow
 {
 
+    private bool isActive = true;
+
     private const string ASSET_FOLDER = "Assets";
     private const int POSITION_MAIN_ASSETS_FOLDER_IN_STRING = 1;
 
@@ -52,16 +54,15 @@ public class DataOrganizer : EditorWindow
     {
         GUILayout.Label("Organizer", EditorStyles.boldLabel);
 
-        AssetsOrganize();
+        isActive = EditorGUILayout.Toggle("Active auto checker", isActive);
 
-        GUILayout.Label("Test Zone", EditorStyles.boldLabel);
+        if (isActive)
+            AssetsOrganize();
 
-        if (GUILayout.Button("Check"))
+        if (GUILayout.Button("Manual Check"))
         {
             AssetsOrganize();
         }
-
-
     }
 
     //This method is the main method of the tool, it act like an update
@@ -91,7 +92,8 @@ public class DataOrganizer : EditorWindow
     }
 
 
-    //This method 
+    //This method search all asset and than execute the other method/function
+    //to know if an asset must be move or not 
     private void OrganizeAssets(string assetType, string assetGoodLocationFolder)
     {
         string[] assetsGUID = AssetDatabase.FindAssets("t:" + assetType, new[] { ASSET_FOLDER });
@@ -122,7 +124,7 @@ public class DataOrganizer : EditorWindow
 
     }
 
-    //This Method check if the folder where we want the asset to go exist or if we must create it
+    //This method check if the folder where we want the asset to go exist or if we must create it
     private void CheckFolderExist(string folderName)
     {
         string[] subFolders = AssetDatabase.GetSubFolders(ASSET_FOLDER);
@@ -182,11 +184,14 @@ public class DataOrganizer : EditorWindow
                                             "Exception");
     }
 
+    //This method move the asset to the folder that it receive the name
     private void MoveAssetToGoodLocation(string assetPath, string[] cutedAssetPath, string assetGoodLocationFolder)
     {
         AssetDatabase.MoveAsset(assetPath, ASSET_FOLDER + "/" + assetGoodLocationFolder + "/" + cutedAssetPath[cutedAssetPath.Length - 1]);
     }
 
+    //This method check if an exception folder exist at the current place, create one if not,
+    //and then move the asset in it
     private void MoveAssetToExceptionFolder(string assetPath, string[] cutedAssetPath)
     {
         string exceptionFolderPath = GetExceptionFolderPath(cutedAssetPath);
@@ -223,6 +228,7 @@ public class DataOrganizer : EditorWindow
         AssetDatabase.MoveAsset(assetPath, exceptionFolderPath + "/" + cutedAssetPath[cutedAssetPath.Length - 1]);
     }
 
+    //This function return a string of the the location where the exception folder should be
     private string GetExceptionFolderPath(string[] cutedAssetPath)
     {
         string exceptionFolderPath = "";
