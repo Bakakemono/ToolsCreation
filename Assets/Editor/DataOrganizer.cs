@@ -1,18 +1,19 @@
-﻿using System;
-using System.Linq.Expressions;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
-using UnityEngine.Audio;
-using UnityScript.Steps;
+using System.IO;
 
 
 public class DataOrganizer : EditorWindow
 {
 
-    private bool isActive = true;
+    private bool autoChecking = false;
 
     private const string ASSET_FOLDER = "Assets";
     private const int POSITION_MAIN_ASSETS_FOLDER_IN_STRING = 1;
+
+    private int numberOfException = 0;
+
+    private string dataFileName = "Data.json";
 
     #region Type of Assets
     private const string SCRIPT_TYPE = "script";                            //work
@@ -26,7 +27,8 @@ public class DataOrganizer : EditorWindow
     private const string MATERIAL_TYPE = "material";                        //work
     private const string ANIMATION_TYPE = "animation";                      //work
     private const string ANIMATOR_CONTROLLER_TYPE = "animatorcontroller";   //work
-
+    private const string RENDER_TEXTURE_TYPE = "rendertexture";             //work
+    
     #endregion
 
     //All folder's name that should be use
@@ -37,10 +39,17 @@ public class DataOrganizer : EditorWindow
     private const string SCENES_FOLDER = "Scenes";
     private const string SOUNDS_FOLDER = "Sounds";
     private const string MATERIALS_FOLDER = "Materials";
+    private const string ANIMATIONS_FOLDER = "Animations";
+    private const string TEXTURES_FOLDER = "Textures";
+    private const string PHYSICS_MATERIAL_FOLDER = "Physics Material";
+
+    private const string STREAMiNG_ASSETS_FOLDER = "StreamingAssets";
 
     //Folder that shouldn't be check for organization 
     private const string EXCEPTION_FOLDER = "Exceptions";
     private const string EDITOR_FOLDER = "Editor";
+    private const string PLUGIN_FOLDER = "Plugins";
+    private string[] exceptionFolderBonus;
     #endregion
 
 
@@ -54,9 +63,68 @@ public class DataOrganizer : EditorWindow
     {
         GUILayout.Label("Organizer", EditorStyles.boldLabel);
 
-        isActive = EditorGUILayout.Toggle("Active auto checker", isActive);
+        if (exceptionFolderBonus != null)
+        {
+            numberOfException = exceptionFolderBonus.Length;
+        }
 
-        if (isActive)
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Save"))
+        {
+            SaveData();
+        }
+        if (GUILayout.Button("Load"))
+        {
+            LoadData();
+            numberOfException = exceptionFolderBonus.Length;
+        }
+        EditorGUILayout.EndHorizontal();
+        if (GUILayout.Button("Reset"))
+        {
+            numberOfException = 0;
+            Debug.Log(Application.dataPath);
+        }
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Add Exception"))
+            {
+                numberOfException++;
+            }
+
+            if (GUILayout.Button("Remove Exception"))
+            {
+                numberOfException--;
+                if (numberOfException < 0)
+                    numberOfException = 0;
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+        //Display field to enter name if one or more exception needed
+        if(numberOfException > 0)
+        {
+            string[] transitionExceptionFolderName = new string[numberOfException];
+
+            for (int i = 0; i < exceptionFolderBonus.Length && i < numberOfException; i++)
+            {
+                transitionExceptionFolderName[i] = exceptionFolderBonus[i];
+            }
+
+            for (int i = 0; i < transitionExceptionFolderName.Length; i++)
+            {
+                transitionExceptionFolderName[i] = EditorGUILayout.TextField("Exception Folder " + i + " ", transitionExceptionFolderName[i]);
+            }
+
+            exceptionFolderBonus = transitionExceptionFolderName;
+        }
+        else
+        {
+            exceptionFolderBonus = new string[0];
+        }
+
+
+        autoChecking = EditorGUILayout.Toggle("Active auto checker", autoChecking);
+
+        if (autoChecking)
             AssetsOrganize();
 
         if (GUILayout.Button("Manual Check"))
@@ -64,6 +132,7 @@ public class DataOrganizer : EditorWindow
             AssetsOrganize();
         }
     }
+
 
     //This method is the main method of the tool, it act like an update
     private void AssetsOrganize()
@@ -80,15 +149,17 @@ public class DataOrganizer : EditorWindow
 
         OrganizeAssets(AUDIO_MIXER_TYPE, SOUNDS_FOLDER);
 
-        OrganizeAssets(ANIMATION_TYPE, SPRITES_FOLDER);
+        OrganizeAssets(ANIMATION_TYPE, ANIMATIONS_FOLDER);
 
-        OrganizeAssets(ANIMATOR_CONTROLLER_TYPE, SPRITES_FOLDER);
+        OrganizeAssets(ANIMATOR_CONTROLLER_TYPE, ANIMATIONS_FOLDER);
 
-        OrganizeAssets(PHYSICS_MATERIAL_2D_TYPE, MATERIALS_FOLDER);
+        OrganizeAssets(PHYSICS_MATERIAL_2D_TYPE, PHYSICS_MATERIAL_FOLDER);
 
-        OrganizeAssets(PHYSIC_MATERIAL_TYPE, MATERIALS_FOLDER);
+        OrganizeAssets(PHYSIC_MATERIAL_TYPE, PHYSICS_MATERIAL_FOLDER);
 
         OrganizeAssets(MATERIAL_TYPE, MATERIALS_FOLDER);
+
+        OrganizeAssets(RENDER_TEXTURE_TYPE, TEXTURES_FOLDER);
     }
 
 
@@ -111,7 +182,7 @@ public class DataOrganizer : EditorWindow
 
             if (CheckAssetsIsInWrongFolder(cutedAssetPath, assetGoodLocationFolder) && !CheckAsstetsIsInExceptionFolder(cutedAssetPath))
             {
-                if (!GetMoveToExceptionFolderChoice(assetPath, assetGoodLocationFolder, cutedAssetPath))
+                if (!GetMoveToExceptionFolderChoice(assetPath, assetGoodLocationFolder, cutedAssetPath, assetType))
                 {
                     MoveAssetToExceptionFolder(assetPath, cutedAssetPath);
                 }
@@ -159,10 +230,27 @@ public class DataOrganizer : EditorWindow
 
         for (int i = 1; i < cutedAssetPath.Length - 1; i++)
         {
-            if (cutedAssetPath[i] == EXCEPTION_FOLDER || cutedAssetPath[i] == EDITOR_FOLDER)
+            if (cutedAssetPath[i] == EXCEPTION_FOLDER || cutedAssetPath[i] == EDITOR_FOLDER || cutedAssetPath[i] == PLUGIN_FOLDER)
             {
                 isInExceptionFolder = true;
                 break;
+            }
+
+            if (exceptionFolderBonus != null)
+            {
+                foreach (string exceptionFolderName in exceptionFolderBonus)
+                {
+                    if (cutedAssetPath[i] == exceptionFolderName)
+                    {
+                        isInExceptionFolder = true;
+                        break;
+                    }
+                }
+
+                if (isInExceptionFolder)
+                {
+                    break;
+                }
             }
         }
 
@@ -171,13 +259,21 @@ public class DataOrganizer : EditorWindow
 
     //This function is to display a popup window that will ask the user if he want to move the assets at the good place
     //or if he want move it in a exception folder
-    private bool GetMoveToExceptionFolderChoice(string assetPath, string assetGoodLocationFolder, string[] cutedAssetPath)
+    private bool GetMoveToExceptionFolderChoice(string assetPath, string assetGoodLocationFolder, string[] cutedAssetPath, string assetType)
     {
-        return EditorUtility.DisplayDialog( "Your assets <" + cutedAssetPath[cutedAssetPath.Length - 1] + "> is at the wrong place", 
-                                            "Current path : " + assetPath + "\n" +
+        string[] cutedAssetName = cutedAssetPath[cutedAssetPath.Length - 1].Split(".".ToCharArray());
+
+        string assetName = cutedAssetName[cutedAssetName.Length - 1];
+
+        return EditorUtility.DisplayDialog( "WARNING : Asset wrong location",
+                                            "Your " + assetType + " <" + assetName + "> is at the wrong place \n" +
+                                            "\n" +
                                             "Do you want to move it in the good folder ? \n" +
+                                            "Current path : " + assetPath + "\n" +
+                                            "\n" +
                                             "If you want to move it : \n" +
                                             "New path : " + ASSET_FOLDER + "/"+ assetGoodLocationFolder + "/" + cutedAssetPath[cutedAssetPath.Length - 1] + "\n" +
+                                            "\n" +
                                             "or let it here and setup an exception folder ?\n" +
                                             "Exception path : " + GetExceptionFolderPath(cutedAssetPath) + "/" + cutedAssetPath[cutedAssetPath.Length - 1] + "\n",
                                             "Move it",
@@ -239,5 +335,45 @@ public class DataOrganizer : EditorWindow
 
         exceptionFolderPath += EXCEPTION_FOLDER;
         return exceptionFolderPath;
+    }
+
+    private void SaveData()
+    {
+        CheckFolderExist(EDITOR_FOLDER);
+        string filePath = Path.Combine(UnityProjectEditorFolderPath(), dataFileName);
+
+        if (!File.Exists(filePath))
+        {
+            File.Create(filePath).Close();
+        }
+
+        DataOrganizer_Data data = new DataOrganizer_Data();
+        data.exceptionFoldersName = exceptionFolderBonus;
+
+        string DataAsJson = JsonUtility.ToJson(data);
+        File.WriteAllText(filePath, DataAsJson);
+    }
+
+    private void LoadData()
+    {
+        CheckFolderExist(EDITOR_FOLDER);
+        
+        string filePath = Path.Combine(UnityProjectEditorFolderPath(), dataFileName);
+
+        Debug.Log(Application.streamingAssetsPath);
+
+        if (!File.Exists(filePath))
+        {
+            File.Create(filePath).Close();
+        }
+        string dataAsJson = File.ReadAllText(filePath);
+        DataOrganizer_Data loadedData = JsonUtility.FromJson<DataOrganizer_Data>(dataAsJson);
+
+        exceptionFolderBonus = loadedData.exceptionFoldersName;
+    }
+
+    private string UnityProjectEditorFolderPath()
+    {
+        return Application.dataPath + "/" + EDITOR_FOLDER;
     }
 }
