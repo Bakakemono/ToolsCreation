@@ -4,6 +4,9 @@ using UnityEditor;
 [System.Serializable]
 public class TypeDisplayPopup : PopupWindowContent
 {
+
+    //All bool to know if a type is automatically move or not
+    #region types bool
     public bool script = false;
     public bool sprite = false;
     public bool prefab = false;
@@ -16,6 +19,7 @@ public class TypeDisplayPopup : PopupWindowContent
     public bool animation = false;
     public bool animatorController = false;
     public bool rendererTexture = false;
+    #endregion
 
     private Vector2 size = new Vector2(190, 250);
 

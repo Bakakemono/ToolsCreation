@@ -428,6 +428,7 @@ public class DataOrganizer : EditorWindow
         return Application.dataPath + "/" + EDITOR_FOLDER;
     }
 
+    //Layout in the editor of the save and load methods
     private void SaveAndLoad()
     {
         GUILayout.Label("Save/load your preset");
