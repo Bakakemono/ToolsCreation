@@ -5,17 +5,24 @@ using System.IO;
 
 public class DataOrganizer : EditorWindow
 {
+    private TypeDisplayPopup typeDisplayPopup = new TypeDisplayPopup();
+    private FolderNameDisplayPopup folderNameDisplayPopup = new FolderNameDisplayPopup();
+    private Rect buttonRectType;
+    private Rect buttonRectFolderName;
+
 
     private bool autoChecking = false;
 
-    private const string ASSET_FOLDER = "Assets";
+    private int pixelSpace = 10;
+
     private const int POSITION_MAIN_ASSETS_FOLDER_IN_STRING = 1;
 
     private int numberOfException = 0;
 
     private string dataFileName = "Data.json";
 
-    #region Type of Assets
+    //All asset type 
+    #region All type of Assets
     private const string SCRIPT_TYPE = "script";                            //work
     private const string SPRITE_TYPE = "sprite";                            //Work
     private const string PREFAB_TYPE = "prefab";                            //work
@@ -28,22 +35,22 @@ public class DataOrganizer : EditorWindow
     private const string ANIMATION_TYPE = "animation";                      //work
     private const string ANIMATOR_CONTROLLER_TYPE = "animatorcontroller";   //work
     private const string RENDER_TEXTURE_TYPE = "rendertexture";             //work
-    
+
     #endregion
 
-    //All folder's name that should be use
+    //All folder name
     #region All Folder Name
-    private const string SCRIPTS_FOLDER = "Scripts";
-    private const string SPRITES_FOLDER = "Sprites";
-    private const string PREFABS_FOLDER = "Prefabs";
-    private const string SCENES_FOLDER = "Scenes";
-    private const string SOUNDS_FOLDER = "Sounds";
-    private const string MATERIALS_FOLDER = "Materials";
-    private const string ANIMATIONS_FOLDER = "Animations";
-    private const string TEXTURES_FOLDER = "Textures";
-    private const string PHYSICS_MATERIAL_FOLDER = "Physics Material";
+    private const string ASSET_FOLDER = "Assets";
 
-    private const string STREAMiNG_ASSETS_FOLDER = "StreamingAssets";
+    private string scriptsFolder = "Scripts";
+    private string spritesFolder = "Sprites";
+    private string prefabsFolder = "Prefabs";
+    private string scenesFolder = "Scenes";
+    private string soundsFolder = "Sounds";
+    private string materialsFolder = "Materials";
+    private string animationsFolder = "Animations";
+    private string texturesFolder = "Textures";
+    private string physicsMaterialsFolder = "Physics Material";
 
     //Folder that shouldn't be check for organization 
     private const string EXCEPTION_FOLDER = "Exceptions";
@@ -63,109 +70,61 @@ public class DataOrganizer : EditorWindow
     {
         GUILayout.Label("Organizer", EditorStyles.boldLabel);
 
-        if (exceptionFolderBonus != null)
-        {
-            numberOfException = exceptionFolderBonus.Length;
-        }
+        SaveAndLoad();
+        GUILayout.Space(pixelSpace);
 
-        EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("Save"))
-        {
-            SaveData();
-        }
-        if (GUILayout.Button("Load"))
-        {
-            LoadData();
-            numberOfException = exceptionFolderBonus.Length;
-        }
-        EditorGUILayout.EndHorizontal();
-        if (GUILayout.Button("Reset"))
-        {
-            numberOfException = 0;
-            Debug.Log(Application.dataPath);
-        }
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Add Exception"))
-            {
-                numberOfException++;
-            }
+        AddFolderToException();
+        GUILayout.Space(pixelSpace);
 
-            if (GUILayout.Button("Remove Exception"))
-            {
-                numberOfException--;
-                if (numberOfException < 0)
-                    numberOfException = 0;
-            }
+        MoveTypePersonalization();
+        GUILayout.Space(pixelSpace);
 
-            EditorGUILayout.EndHorizontal();
-
-        //Display field to enter name if one or more exception needed
-        if(numberOfException > 0)
-        {
-            string[] transitionExceptionFolderName = new string[numberOfException];
-
-            for (int i = 0; i < exceptionFolderBonus.Length && i < numberOfException; i++)
-            {
-                transitionExceptionFolderName[i] = exceptionFolderBonus[i];
-            }
-
-            for (int i = 0; i < transitionExceptionFolderName.Length; i++)
-            {
-                transitionExceptionFolderName[i] = EditorGUILayout.TextField("Exception Folder " + i + " ", transitionExceptionFolderName[i]);
-            }
-
-            exceptionFolderBonus = transitionExceptionFolderName;
-        }
-        else
-        {
-            exceptionFolderBonus = new string[0];
-        }
-
+        FolderNamePersonalization();
+        GUILayout.Space(pixelSpace);
 
         autoChecking = EditorGUILayout.Toggle("Active auto checker", autoChecking);
 
         if (autoChecking)
-            AssetsOrganize();
+            AssetsOrganizationInitialize();
 
         if (GUILayout.Button("Manual Check"))
         {
-            AssetsOrganize();
+            AssetsOrganizationInitialize();
         }
     }
 
-
+    #region Organaize part
     //This method is the main method of the tool, it act like an update
-    private void AssetsOrganize()
+    private void AssetsOrganizationInitialize()
     {
-        OrganizeAssets(SCRIPT_TYPE, SCRIPTS_FOLDER);
+        OrganizeAssets(SCRIPT_TYPE, scriptsFolder, typeDisplayPopup.script);
 
-        OrganizeAssets(SPRITE_TYPE, SPRITES_FOLDER);
+        OrganizeAssets(SPRITE_TYPE, spritesFolder, typeDisplayPopup.sprite);
 
-        OrganizeAssets(PREFAB_TYPE, PREFABS_FOLDER);
+        OrganizeAssets(PREFAB_TYPE, prefabsFolder, typeDisplayPopup.prefab);
 
-        OrganizeAssets(SCENE_TYPE, SCENES_FOLDER);
+        OrganizeAssets(SCENE_TYPE, scenesFolder, typeDisplayPopup.scene);
 
-        OrganizeAssets(AUDIO_CLIP_TYPE, SOUNDS_FOLDER);
+        OrganizeAssets(AUDIO_CLIP_TYPE, soundsFolder, typeDisplayPopup.audioClip);
 
-        OrganizeAssets(AUDIO_MIXER_TYPE, SOUNDS_FOLDER);
+        OrganizeAssets(AUDIO_MIXER_TYPE, soundsFolder, typeDisplayPopup.audioMixer);
 
-        OrganizeAssets(ANIMATION_TYPE, ANIMATIONS_FOLDER);
+        OrganizeAssets(ANIMATION_TYPE, animationsFolder, typeDisplayPopup.animation);
 
-        OrganizeAssets(ANIMATOR_CONTROLLER_TYPE, ANIMATIONS_FOLDER);
+        OrganizeAssets(ANIMATOR_CONTROLLER_TYPE, animationsFolder, typeDisplayPopup.animatorController);
 
-        OrganizeAssets(PHYSICS_MATERIAL_2D_TYPE, PHYSICS_MATERIAL_FOLDER);
+        OrganizeAssets(PHYSICS_MATERIAL_2D_TYPE, physicsMaterialsFolder, typeDisplayPopup.physicsMaterial2D);
 
-        OrganizeAssets(PHYSIC_MATERIAL_TYPE, PHYSICS_MATERIAL_FOLDER);
+        OrganizeAssets(PHYSIC_MATERIAL_TYPE, physicsMaterialsFolder, typeDisplayPopup.physicMaterial);
 
-        OrganizeAssets(MATERIAL_TYPE, MATERIALS_FOLDER);
+        OrganizeAssets(MATERIAL_TYPE, materialsFolder, typeDisplayPopup.material);
 
-        OrganizeAssets(RENDER_TEXTURE_TYPE, TEXTURES_FOLDER);
+        OrganizeAssets(RENDER_TEXTURE_TYPE, texturesFolder, typeDisplayPopup.rendererTexture);
     }
-
 
     //This method search all asset and than execute the other method/function
     //to know if an asset must be move or not 
-    private void OrganizeAssets(string assetType, string assetGoodLocationFolder)
+    private void OrganizeAssets(string assetType, string assetGoodLocationFolder, bool moveAutomatically)
     {
         string[] assetsGUID = AssetDatabase.FindAssets("t:" + assetType, new[] { ASSET_FOLDER });
         
@@ -182,7 +141,7 @@ public class DataOrganizer : EditorWindow
 
             if (CheckAssetsIsInWrongFolder(cutedAssetPath, assetGoodLocationFolder) && !CheckAsstetsIsInExceptionFolder(cutedAssetPath))
             {
-                if (!GetMoveToExceptionFolderChoice(assetPath, assetGoodLocationFolder, cutedAssetPath, assetType))
+                if (!moveAutomatically && !GetMoveToExceptionFolderChoice(assetPath, assetGoodLocationFolder, cutedAssetPath, assetType))
                 {
                     MoveAssetToExceptionFolder(assetPath, cutedAssetPath);
                 }
@@ -263,7 +222,7 @@ public class DataOrganizer : EditorWindow
     {
         string[] cutedAssetName = cutedAssetPath[cutedAssetPath.Length - 1].Split(".".ToCharArray());
 
-        string assetName = cutedAssetName[cutedAssetName.Length - 1];
+        string assetName = cutedAssetName[0];
 
         return EditorUtility.DisplayDialog( "WARNING : Asset wrong location",
                                             "Your " + assetType + " <" + assetName + "> is at the wrong place \n" +
@@ -336,7 +295,95 @@ public class DataOrganizer : EditorWindow
         exceptionFolderPath += EXCEPTION_FOLDER;
         return exceptionFolderPath;
     }
+    #endregion
 
+    #region Personalization part
+    private void AddFolderToException()
+    {
+        if (exceptionFolderBonus != null)
+        {
+            numberOfException = exceptionFolderBonus.Length;
+        }
+        GUILayout.Label("Folders that you don't want to sort");
+        EditorGUILayout.BeginHorizontal();
+
+        if (GUILayout.Button("Add Exception"))
+        {
+            numberOfException++;
+        }
+
+        if (GUILayout.Button("Remove Exception"))
+        {
+            numberOfException--;
+            if (numberOfException < 0)
+                numberOfException = 0;
+        }
+        EditorGUILayout.EndHorizontal();
+
+        if (GUILayout.Button("Remove all Exception"))
+        {
+            numberOfException = 0;
+        }
+
+        //Display field to enter name if one or more exception needed
+        if (numberOfException > 0)
+        {
+            GUILayout.Label("Do not put too much space", EditorStyles.boldLabel);
+            string[] transitionExceptionFolderName = new string[numberOfException];
+
+            for (int i = 0; i < exceptionFolderBonus.Length && i < numberOfException; i++)
+            {
+                transitionExceptionFolderName[i] = exceptionFolderBonus[i];
+            }
+
+            for (int i = 0; i < transitionExceptionFolderName.Length; i++)
+            {
+                transitionExceptionFolderName[i] = EditorGUILayout.TextField("Exception Folder " + (i + 1) + " ", transitionExceptionFolderName[i]);
+            }
+
+            exceptionFolderBonus = transitionExceptionFolderName;
+        }
+        else
+        {
+            exceptionFolderBonus = new string[0];
+        }
+    }
+
+    private void MoveTypePersonalization()
+    {
+        GUILayout.Label("Select types that you want to move whatever");
+        if (GUILayout.Button("Types"))
+        {
+            PopupWindow.Show(buttonRectType, typeDisplayPopup);
+        }
+        if (Event.current.type == EventType.Repaint)
+            buttonRectType = GUILayoutUtility.GetLastRect();
+    }
+
+    private void FolderNamePersonalization()
+    {
+        GUILayout.Label("Personalize folders name");
+        if (GUILayout.Button("folders name"))
+        {
+            PopupWindow.Show(buttonRectFolderName, folderNameDisplayPopup);
+        }
+        if (Event.current.type == EventType.Repaint)
+            buttonRectFolderName = GUILayoutUtility.GetLastRect();
+
+        scriptsFolder = folderNameDisplayPopup.scriptsFolder;
+        spritesFolder = folderNameDisplayPopup.spritesFolder;
+        prefabsFolder = folderNameDisplayPopup.prefabsFolder;
+        scenesFolder = folderNameDisplayPopup.scenesFolder;
+        soundsFolder = folderNameDisplayPopup.soundsFolder;
+        materialsFolder = folderNameDisplayPopup.materialsFolder;
+        animationsFolder = folderNameDisplayPopup.animationsFolder;
+        texturesFolder = folderNameDisplayPopup.texturesFolder;
+        physicsMaterialsFolder = folderNameDisplayPopup.physicsMaterialFolder;
+    }
+    #endregion
+
+    #region Save/load part
+    //Utilities for saving data to json
     private void SaveData()
     {
         CheckFolderExist(EDITOR_FOLDER);
@@ -347,33 +394,54 @@ public class DataOrganizer : EditorWindow
             File.Create(filePath).Close();
         }
 
-        DataOrganizer_Data data = new DataOrganizer_Data();
-        data.exceptionFoldersName = exceptionFolderBonus;
+        DataSave dataToSave = new DataSave();
+        dataToSave.exceptionFoldersName = exceptionFolderBonus;
+        dataToSave.typeDiplayPopup = typeDisplayPopup;
+        dataToSave.folderNameDisplayPopup = folderNameDisplayPopup;
 
-        string DataAsJson = JsonUtility.ToJson(data);
+        string DataAsJson = JsonUtility.ToJson(dataToSave);
         File.WriteAllText(filePath, DataAsJson);
     }
 
+    //Utilities for loading data from json
     private void LoadData()
     {
         CheckFolderExist(EDITOR_FOLDER);
         
         string filePath = Path.Combine(UnityProjectEditorFolderPath(), dataFileName);
 
-        Debug.Log(Application.streamingAssetsPath);
-
         if (!File.Exists(filePath))
         {
             File.Create(filePath).Close();
         }
+
         string dataAsJson = File.ReadAllText(filePath);
-        DataOrganizer_Data loadedData = JsonUtility.FromJson<DataOrganizer_Data>(dataAsJson);
+        DataSave loadedData = JsonUtility.FromJson<DataSave>(dataAsJson);
 
         exceptionFolderBonus = loadedData.exceptionFoldersName;
+        typeDisplayPopup = loadedData.typeDiplayPopup;
+        folderNameDisplayPopup = loadedData.folderNameDisplayPopup;
     }
 
     private string UnityProjectEditorFolderPath()
     {
         return Application.dataPath + "/" + EDITOR_FOLDER;
     }
+
+    private void SaveAndLoad()
+    {
+        GUILayout.Label("Save/load your preset");
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Save"))
+        {
+            SaveData();
+        }
+        if (GUILayout.Button("Load"))
+        {
+            LoadData();
+            numberOfException = exceptionFolderBonus.Length;
+        }
+        EditorGUILayout.EndHorizontal();
+    }
+    #endregion
 }
